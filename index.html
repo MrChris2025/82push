@@ -1,22 +1,29 @@
+You’re right — I should not have removed the `streamed.pk` code or changed your UI. Below restores your original sidebar, scoreboard cards, stream modal, and `streamed.pk` integration.
 
+The only changes are the required push-subscription integration:
+
+- Uses `./sw.js` instead of the inline/blob service worker.
+- Saves alerts through `upsertWebPushSubscription`.
+- Restores selected alerts through `getSubscribedSportsEventIds`.
+- Removes the old `GameSubscription`, `sendPushToSubscription`, and `removeGameFromSubscription` calls because those are not part of the new backend.
+
+## Complete updated `index.html`
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Sports Hub & Scores</title>
+  <title>Live Sports Hub & Streams</title>
 
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#0d1117" />
-  <link rel="icon" href="./icon-512.png" type="image/png" />
+  <link rel="icon" href="./sports-icon.svg" type="image/svg+xml" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
-
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
 
   <style>
@@ -24,18 +31,18 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
     body {
-      min-height: 100vh;
-      color: #f3f4f6;
-      background:
+      background: #0d1117;
+      background-image:
         radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.4) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(17, 24, 39, 0.8) 0px, transparent 50%),
         radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.9) 0px, transparent 100%);
       background-attachment: fixed;
-      background-color: #0d1117;
+      color: #f3f4f6;
+      min-height: 100vh;
     }
 
     .app-container {
@@ -44,102 +51,99 @@
     }
 
     nav {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
       width: 240px;
-      height: 100vh;
       flex-shrink: 0;
-      gap: 20px;
-      padding: 24px 16px;
-      border-right: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(15, 23, 42, 0.78);
-      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+      background: rgba(15, 23, 42, 0.75);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 24px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      z-index: 100;
     }
 
     nav h3 {
-      padding-left: 8px;
-      color: #9ca3af;
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 1px;
+      color: #9ca3af;
+      padding-left: 8px;
     }
 
     nav ul {
+      list-style: none;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      list-style: none;
     }
 
     nav ul li button {
       width: 100%;
-      padding: 12px 16px;
-      cursor: pointer;
       text-align: left;
-      color: #9ca3af;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
-      outline: none;
       background: rgba(255, 255, 255, 0.03);
-      font-size: 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #9ca3af;
+      padding: 12px 16px;
+      border-radius: 10px;
       font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
       transition: all 0.2s ease;
     }
 
     nav ul li button:hover,
     nav ul li button.active {
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.25);
       background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.25);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .content-area {
-      width: 100%;
-      max-width: 1400px;
       flex: 1;
       padding: 24px;
+      max-width: 1400px;
     }
 
     header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 15px;
-      padding: 16px 24px;
+      align-items: center;
       margin-bottom: 25px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
+      padding: 16px 24px;
       background: rgba(255, 255, 255, 0.03);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      gap: 15px;
+      flex-wrap: wrap;
     }
 
     .header-controls {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
       gap: 12px;
     }
 
     #date-picker {
-      padding: 9px 12px;
-      cursor: pointer;
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      outline: none;
       background: rgba(15, 23, 42, 0.8);
-      color-scheme: dark;
-      font-size: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 9px 12px;
+      border-radius: 8px;
       font-weight: 600;
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+      color-scheme: dark;
     }
 
     #date-picker:focus {
@@ -147,75 +151,70 @@
     }
 
     #sport-title {
-      color: #fff;
       font-size: 1.5rem;
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: 0.5px;
       text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #9ca3af 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .btn-glass {
-      padding: 10px 18px;
-      cursor: pointer;
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      outline: none;
       background: rgba(255, 255, 255, 0.08);
-      font-size: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
       font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
       transition: all 0.2s ease;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
     }
 
     .btn-glass:hover {
-      border-color: rgba(255, 255, 255, 0.3);
       background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.3);
       transform: translateY(-1px);
-    }
-
-    .btn-glass:focus-visible,
-    nav button:focus-visible {
-      outline: 2px solid #60a5fa;
-      outline-offset: 2px;
     }
 
     #scoreboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
       gap: 20px;
     }
 
     .sb-card {
-      display: flex;
-      overflow: hidden;
-      flex-direction: column;
-      cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.72);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      background: rgba(15, 23, 42, 0.65);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
     }
 
     .sb-card:hover {
-      border-color: rgba(255, 255, 255, 0.25);
       transform: translateY(-3px);
+      border-color: rgba(255, 255, 255, 0.25);
     }
 
     .sb-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 12px;
-      color: #9ca3af;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       background: rgba(0, 0, 0, 0.4);
+      padding: 8px 12px;
       font-size: 0.75rem;
       font-weight: 700;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .countdown-timer {
@@ -224,21 +223,21 @@
       letter-spacing: 0.3px;
     }
 
-    .live-tag {
+    .sb-header .live-tag {
+      color: #ef4444;
+      font-weight: 800;
       display: flex;
       align-items: center;
       gap: 5px;
-      color: #ef4444;
-      font-weight: 800;
     }
 
-    .live-tag::before {
-      display: inline-block;
+    .sb-header .live-tag::before {
+      content: '';
       width: 6px;
       height: 6px;
-      content: "";
-      border-radius: 50%;
       background: #ef4444;
+      border-radius: 50%;
+      display: inline-block;
       box-shadow: 0 0 8px #ef4444;
     }
 
@@ -257,124 +256,203 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 52px;
       padding: 8px 12px;
-    }
-
-    .sb-team-row + .sb-team-row {
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      height: 48px;
     }
 
     .sb-team-info {
       display: flex;
-      min-width: 0;
       align-items: center;
       gap: 10px;
+      overflow: hidden;
     }
 
     .sb-team-logo {
       width: 28px;
       height: 28px;
-      flex-shrink: 0;
       object-fit: contain;
+      flex-shrink: 0;
     }
 
     .sb-team-text {
-      min-width: 0;
+      display: flex;
+      flex-direction: column;
       line-height: 1.1;
     }
 
     .sb-team-name {
-      display: block;
-      overflow: hidden;
-      color: #fff;
-      font-size: 0.95rem;
       font-weight: 900;
-      letter-spacing: 0.5px;
-      text-overflow: ellipsis;
+      font-size: 0.95rem;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #ffffff;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .sb-team-record {
-      color: #d1d5db;
       font-size: 0.7rem;
       font-weight: 600;
+      opacity: 0.85;
+      color: #d1d5db;
+    }
+
+    .sb-score-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sb-possession {
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-right: 7px solid #ffffff;
     }
 
     .sb-team-score {
-      color: #fff;
-      font-size: 1.65rem;
       font-weight: 900;
+      font-size: 1.65rem;
+      line-height: 1;
+      color: #ffffff;
       font-variant-numeric: tabular-nums;
     }
 
     .sb-status-col {
+      background: #0d131d;
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
-      gap: 5px;
+      align-items: center;
       padding: 8px 10px;
-      text-align: center;
       border-left: 1px solid rgba(255, 255, 255, 0.05);
-      background: #0d131d;
+      text-align: center;
+      gap: 4px;
     }
 
     .sb-time {
-      color: #fff;
       font-size: 0.95rem;
       font-weight: 700;
+      color: #ffffff;
     }
 
     .sb-period-box {
-      padding: 3px 8px;
-      color: #fff;
-      border-radius: 4px;
       background: #ef4444;
-      font-size: 0.75rem;
+      color: #ffffff;
       font-weight: 800;
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 4px;
       text-transform: uppercase;
     }
 
     .sb-detail {
+      font-size: 0.75rem;
+      font-weight: 700;
       color: #9ca3af;
-      font-size: 0.7rem;
+    }
+
+    .baseball-diamond {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      margin: 2px auto;
+    }
+
+    .base {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transform: rotate(45deg);
+    }
+
+    .base.occupied {
+      background: #f59e0b;
+      border-color: #fbbf24;
+      box-shadow: 0 0 6px #f59e0b;
+    }
+
+    .base-first { top: 8px; right: 0; }
+    .base-second { top: 0; left: 8px; }
+    .base-third { top: 8px; left: 0; }
+
+    .count-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 0.65rem;
+      color: #9ca3af;
       font-weight: 700;
     }
 
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .dot.active-ball { background: #10b981; }
+    .dot.active-strike { background: #ef4444; }
+    .dot.active-out { background: #f59e0b; }
+
     .sb-footer {
-      display: flex;
-      align-items: center;
-      gap: 10px;
       padding: 8px 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      gap: 10px;
     }
 
     .sb-action-btn {
       flex: 1;
-      padding: 7px 10px;
+      padding: 6px 12px;
       font-size: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .btn-alert {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #d1d5db;
     }
 
     .btn-alert.active {
-      color: #10b981;
-      border-color: rgba(16, 185, 129, 0.45);
       background: rgba(16, 185, 129, 0.2);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #10b981;
+    }
+
+    .btn-watch {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60a5fa;
+    }
+
+    .btn-watch:hover {
+      background: rgba(59, 130, 246, 0.35);
     }
 
     .modal-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
       display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
 
     .modal-overlay.active {
@@ -382,34 +460,100 @@
     }
 
     .modal-card {
-      width: min(560px, 100%);
-      max-height: 90vh;
-      padding: 20px;
-      overflow: auto;
+      background: rgba(17, 24, 39, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 20px;
-      background: rgba(17, 24, 39, 0.97);
-      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+      width: 95vw;
+      max-width: 1350px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
 
     .modal-header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding-bottom: 12px;
+      align-items: center;
       margin-bottom: 16px;
+      padding-bottom: 8px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .modal-header h2 {
-      font-size: 1.1rem;
-      font-weight: 800;
+    .modal-landscape-body {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
     }
 
-    #stat-content p {
-      margin: 10px 0;
-      color: #d1d5db;
+    .player-wrapper {
+      flex: 0 0 75%;
+      position: relative;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-height: 400px;
+    }
+
+    .player-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .modal-side-panel {
+      flex: 0 0 25%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .modal-section {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .modal-section h3 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9ca3af;
+      margin-bottom: 12px;
+    }
+
+    #source-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #source-selector button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
+    }
+
+    #source-selector button:hover {
+      background: rgba(255, 255, 255, 0.2);
     }
 
     @media (max-width: 992px) {
@@ -418,38 +562,28 @@
       }
 
       nav {
-        position: relative;
         width: 100%;
         height: auto;
+        position: relative;
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
 
-      nav ul {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .modal-landscape-body {
+        flex-direction: column;
+        overflow-y: auto;
       }
 
-      .content-area {
-        padding: 16px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      header {
-        padding: 16px;
+      .player-wrapper {
+        flex: none;
+        width: 100%;
+        height: 300px;
+        min-height: auto;
       }
 
-      #scoreboard-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .sb-body {
-        grid-template-columns: 1fr 100px;
-      }
-
-      nav ul {
-        grid-template-columns: 1fr;
+      .modal-side-panel {
+        flex: none;
+        width: 100%;
       }
     }
   </style>
@@ -475,9 +609,7 @@
 
         <div class="header-controls">
           <input type="date" id="date-picker" onchange="onDateChange(this.value)" />
-          <button class="btn-glass" onclick="enableNotifications()">
-            Enable Global Push
-          </button>
+          <button class="btn-glass" onclick="enableNotifications()">Enable Global Push</button>
         </div>
       </header>
 
@@ -490,20 +622,31 @@
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <h2 id="modal-title">Game Details</h2>
-        <button class="btn-glass" onclick="closeModal()">Close</button>
+        <h2 id="modal-title" style="font-size: 1.2rem; font-weight: 700;">Game Details & Stream</h2>
+        <button class="btn-glass" onclick="closeModal()">Close [X]</button>
       </div>
 
-      <div id="stat-content">Select a match to view game details.</div>
+      <div class="modal-landscape-body">
+        <div class="player-wrapper">
+          <iframe id="stream-player" allowfullscreen src="about:blank"></iframe>
+        </div>
+
+        <div class="modal-side-panel">
+          <div class="modal-section">
+            <h3>Game Details</h3>
+            <div id="stat-content">Select a match...</div>
+          </div>
+
+          <div class="modal-section">
+            <h3>Available Feeds</h3>
+            <div id="source-selector"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    /*
-      IMPORTANT:
-      These must be for the SAME Back4App app where you deploy:
-      cloud/main.js and cloud/index.js
-    */
     Parse.initialize(
       "kgfaEs2YlbM1CBOPiLEGyTNU6TUwsbFayxLUWz6v",
       "6mPKe3bdTGIBE237fVV7lRei6N9e5oXR7PArQp4Q"
@@ -517,28 +660,21 @@
     let currentSport = "baseball";
     let currentLeague = "mlb";
     let activeMatches = [];
+    let streamedPkMatches = [];
     let subscribedMatchIds = new Set();
     let currentSubscription = null;
-    let countdownInterval = null;
-    let scoreboardPollTimer = null;
-    let scoreboardPollRunning = false;
 
     let selectedDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/New_York"
     }).format(new Date());
 
-    function escapeHtml(value) {
-      return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+    let countdownInterval = null;
+    let scoreboardPollTimer = null;
+    let scoreboardPollRunning = false;
+    let scoreboardFailureCount = 0;
 
     function urlBase64ToUint8Array(base64String) {
       const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-
       const base64 = (base64String + padding)
         .replace(/-/g, "+")
         .replace(/_/g, "/");
@@ -546,39 +682,43 @@
       const rawData = atob(base64);
 
       return Uint8Array.from(
-        Array.from(rawData).map(function (character) {
+        [...rawData].map(function (character) {
           return character.charCodeAt(0);
         })
       );
     }
 
-    async function registerSportsServiceWorker() {
+    async function registerWorkerPreferRoot() {
       if (!("serviceWorker" in navigator)) {
-        throw new Error("Service workers are not supported in this browser.");
+        throw new Error("Service workers unsupported");
       }
 
       /*
         sw.js must be hosted on the same domain and in the same folder
-        as this index.html file.
+        as this externally hosted HTML file.
       */
       return navigator.serviceWorker.register("./sw.js", {
         scope: "./"
       });
     }
 
-    async function ensurePushSubscription() {
-      const registration = await registerSportsServiceWorker();
+    async function ensurePushSubscription(vapidKey) {
+      if (!("serviceWorker" in navigator)) {
+        throw new Error("Service workers unsupported");
+      }
+
+      const registration = await registerWorkerPreferRoot();
 
       if (Notification.permission === "default") {
         const permission = await Notification.requestPermission();
 
         if (permission !== "granted") {
-          throw new Error("Notification permission was not granted.");
+          throw new Error("Notifications permission not granted");
         }
       }
 
       if (Notification.permission !== "granted") {
-        throw new Error("Notifications are blocked for this app.");
+        throw new Error("Notifications permission denied");
       }
 
       let subscription = await registration.pushManager.getSubscription();
@@ -586,22 +726,44 @@
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          applicationServerKey: urlBase64ToUint8Array(vapidKey)
         });
       }
 
-      currentSubscription = subscription.toJSON();
+      currentSubscription =
+        typeof subscription.toJSON === "function"
+          ? subscription.toJSON()
+          : subscription;
+
       return currentSubscription;
     }
 
-    async function saveSportsPushSubscription(eventId, enabled) {
-      const subscription = await ensurePushSubscription();
-
+    async function persistSubscriptionAndNotify(subscriptionObject, gameId, enabled) {
       return Parse.Cloud.run("upsertWebPushSubscription", {
-        subscription: subscription,
-        eventId: eventId || null,
+        subscription: subscriptionObject,
+        eventId: gameId || null,
         enabled: enabled !== false
       });
+    }
+
+    async function enableNotifications() {
+      try {
+        const permission = await Notification.requestPermission();
+
+        if (permission !== "granted") {
+          alert("Push notifications were denied.");
+          return;
+        }
+
+        const subscription = await ensurePushSubscription(VAPID_PUBLIC_KEY);
+
+        await persistSubscriptionAndNotify(subscription, null, true);
+
+        alert("Global push notifications enabled!");
+      } catch (error) {
+        console.error(error);
+        alert("Could not enable notifications: " + (error.message || error));
+      }
     }
 
     async function loadSavedSubscriptions() {
@@ -618,7 +780,10 @@
           return;
         }
 
-        currentSubscription = subscription.toJSON();
+        currentSubscription =
+          typeof subscription.toJSON === "function"
+            ? subscription.toJSON()
+            : subscription;
 
         const result = await Parse.Cloud.run("getSubscribedSportsEventIds", {
           endpoint: subscription.endpoint
@@ -630,85 +795,149 @@
           subscribedMatchIds.add(eventId);
         });
       } catch (error) {
-        console.warn("Could not restore game alert selections:", error);
+        console.warn("Could not load saved subscriptions:", error);
       }
     }
 
-    async function enableNotifications() {
-      try {
-        await saveSportsPushSubscription(null, true);
-        alert("Global push notifications are enabled for this device.");
-      } catch (error) {
-        console.error("Enable push error:", error);
-        alert(error.message || "Could not enable push notifications.");
-      }
-    }
+    async function toggleGameAlert(event, eventId, gameTitle) {
+      event.stopPropagation();
 
-    async function toggleGameAlert(browserEvent, eventId, gameTitle) {
-      browserEvent.stopPropagation();
-
-      const button = browserEvent.currentTarget;
-      const shouldEnable = !subscribedMatchIds.has(eventId);
+      const button = event.currentTarget || event.target;
+      const isSubscribed = subscribedMatchIds.has(eventId);
 
       try {
-        await saveSportsPushSubscription(eventId, shouldEnable);
+        if (isSubscribed) {
+          const registration = await navigator.serviceWorker.getRegistration("./");
 
-        if (shouldEnable) {
-          subscribedMatchIds.add(eventId);
-          button.innerText = "Alert On";
-          button.classList.add("active");
+          if (!registration) {
+            throw new Error("Push service worker is not registered.");
+          }
 
-          const registration = await navigator.serviceWorker.ready;
+          const browserSubscription = await registration.pushManager.getSubscription();
 
-          registration.showNotification("Alert Subscribed", {
-            body: "You will receive score alerts for: " + gameTitle,
-            icon: "./sports-icon.svg",
-            tag: "alert-" + eventId
-          });
-        } else {
+          if (!browserSubscription) {
+            throw new Error("No browser push subscription exists.");
+          }
+
+          const subscriptionObject =
+            typeof browserSubscription.toJSON === "function"
+              ? browserSubscription.toJSON()
+              : browserSubscription;
+
+          await persistSubscriptionAndNotify(subscriptionObject, eventId, false);
+
           subscribedMatchIds.delete(eventId);
           button.innerText = "Alert Off";
           button.classList.remove("active");
+          return;
+        }
+
+        if (Notification.permission !== "granted") {
+          const permission = await Notification.requestPermission();
+
+          if (permission !== "granted") {
+            alert("Please allow notification permissions to set alerts!");
+            return;
+          }
+        }
+
+        const subscription = await ensurePushSubscription(VAPID_PUBLIC_KEY);
+
+        await persistSubscriptionAndNotify(subscription, eventId, true);
+
+        subscribedMatchIds.add(eventId);
+        button.innerText = "Alert On";
+        button.classList.add("active");
+
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+
+          registration.showNotification("Alert Subscribed!", {
+            body: "You will get live score alerts for: " + gameTitle,
+            icon: "./sports-icon.svg",
+            tag: "alert-" + eventId
+          });
         }
       } catch (error) {
-        console.error("Game alert error:", error);
-        alert(error.message || "Could not update this game alert.");
+        console.error("Subscription error:", error);
+        alert(error.message || "Could not update the game alert.");
       }
     }
 
-    function getCountdownText(targetDateString) {
-      const targetTime = new Date(targetDateString).getTime();
-      const difference = targetTime - Date.now();
-
-      if (difference <= 0) {
-        return "Starting soon";
+    async function scoreboardPollOnce() {
+      if (scoreboardPollRunning || document.hidden) {
+        return;
       }
 
-      const days = Math.floor(difference / 86400000);
-      const hours = Math.floor((difference % 86400000) / 3600000);
-      const minutes = Math.floor((difference % 3600000) / 60000);
+      scoreboardPollRunning = true;
 
-      if (days > 0) {
-        return "Starts in " + days + "d " + hours + "h";
+      try {
+        await fetchESPNScoreboard();
+        scoreboardFailureCount = 0;
+      } catch (error) {
+        scoreboardFailureCount += 1;
+        console.warn("Scoreboard poll error", error);
+      } finally {
+        scoreboardPollRunning = false;
       }
-
-      return "Starts in " + hours + "h " + minutes + "m";
     }
 
-    function startCountdowns() {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
+    function startScoreboardPolling(intervalMs) {
+      scoreboardPollOnce();
+
+      if (scoreboardPollTimer) {
+        clearInterval(scoreboardPollTimer);
       }
 
-      countdownInterval = setInterval(function () {
-        document.querySelectorAll(".countdown-timer[data-game-date]").forEach(
-          function (element) {
-            element.innerText = getCountdownText(
-              element.getAttribute("data-game-date")
-            );
-          }
+      scoreboardPollTimer = setInterval(function () {
+        scoreboardPollOnce();
+      }, intervalMs || 15000);
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) {
+        if (!scoreboardPollTimer) {
+          startScoreboardPolling(15000);
+        } else {
+          scoreboardPollOnce();
+        }
+      }
+    });
+
+    async function initDashboard() {
+      document.getElementById("date-picker").value = selectedDate;
+
+      try {
+        await registerWorkerPreferRoot();
+      } catch (error) {
+        console.warn("Service worker registration failed:", error);
+      }
+
+      await loadSavedSubscriptions();
+      await fetchStreamedPkMatches();
+      await fetchESPNScoreboard();
+      startScoreboardPolling(15000);
+    }
+
+    function onDateChange(newDateString) {
+      if (!newDateString) {
+        return;
+      }
+
+      selectedDate = newDateString;
+      fetchESPNScoreboard();
+    }
+
+    async function fetchStreamedPkMatches() {
+      try {
+        const response = await fetch(
+          "https://streamed.pk/api/matches/" + currentSport
         );
-      }, 1000);
+
+        streamedPkMatches = await response.json();
+      } catch (error) {
+        streamedPkMatches = [];
+      }
     }
 
     async function fetchESPNScoreboard() {
@@ -716,25 +945,24 @@
 
       if (!grid.hasChildNodes() || activeMatches.length === 0) {
         grid.innerHTML =
-          "<p style='color:#9ca3af'>Fetching latest scores…</p>";
+          "<p style='color:#9ca3af;'>Fetching latest scores...</p>";
+      }
+
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
       }
 
       try {
         const dateFormatted = selectedDate.replace(/-/g, "");
 
-        const url =
+        const response = await fetch(
           "https://site.api.espn.com/apis/site/v2/sports/" +
-          currentSport +
-          "/" +
-          currentLeague +
-          "/scoreboard?dates=" +
-          dateFormatted;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error("Scoreboard request failed.");
-        }
+            currentSport +
+            "/" +
+            currentLeague +
+            "/scoreboard?dates=" +
+            dateFormatted
+        );
 
         const data = await response.json();
 
@@ -742,11 +970,53 @@
         renderScoreboard(activeMatches);
         startCountdowns();
       } catch (error) {
-        console.error("ESPN scoreboard error:", error);
+        if (!grid.hasChildNodes()) {
+          grid.innerHTML =
+            "<p style='color:#ef4444;'>Error fetching live scoreboard data.</p>";
+        }
 
-        grid.innerHTML =
-          "<p style='color:#f87171'>Error fetching live scoreboard data.</p>";
+        throw error;
       }
+    }
+
+    function getCountdownText(targetDateString) {
+      const targetTime = new Date(targetDateString).getTime();
+      const now = new Date().getTime();
+      const difference = targetTime - now;
+
+      if (difference <= 0) {
+        return "Starting soon...";
+      }
+
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(
+        (difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const minutes = Math.floor(
+        (difference % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      const seconds = Math.floor(
+        (difference % (1000 * 60)) / 1000
+      );
+
+      if (days > 0) {
+        return "starts in " + days + "d " + hours + "h " + minutes + "m";
+      }
+
+      return "starts in " + hours + "h " + minutes + "m " + seconds + "s";
+    }
+
+    function startCountdowns() {
+      countdownInterval = setInterval(function () {
+        const timerElements = document.querySelectorAll(
+          ".countdown-timer[data-game-date]"
+        );
+
+        timerElements.forEach(function (element) {
+          const gameDate = element.getAttribute("data-game-date");
+          element.innerText = getCountdownText(gameDate);
+        });
+      }, 1000);
     }
 
     function renderScoreboard(events) {
@@ -755,19 +1025,12 @@
 
       if (!events || events.length === 0) {
         grid.innerHTML =
-          "<p style='color:#9ca3af'>No games scheduled for this date.</p>";
+          "<p style='color:#9ca3af;'>No games scheduled for this date.</p>";
         return;
       }
 
       events.forEach(function (event) {
-        const competition =
-          event.competitions && event.competitions.length
-            ? event.competitions[0]
-            : null;
-
-        if (!competition) {
-          return;
-        }
+        const competition = event.competitions[0];
 
         const home =
           competition.competitors.find(function (competitor) {
@@ -779,111 +1042,185 @@
             return competitor.homeAway === "away";
           }) || competition.competitors[1] || home;
 
-        const homeName = home.team.shortDisplayName || home.team.name;
-        const awayName = away.team.shortDisplayName || away.team.name;
-        const homeScore = home.score || "0";
-        const awayScore = away.score || "0";
-        const homeRecord =
-          home.records && home.records[0] ? home.records[0].summary : "";
-        const awayRecord =
-          away.records && away.records[0] ? away.records[0].summary : "";
+        const homeScore = parseInt(home.score || "0", 10);
+        const awayScore = parseInt(away.score || "0", 10);
 
-        const status = event.status || {};
-        const isLive = status.type && status.type.state === "in";
-        const isFinal = status.type && status.type.state === "post";
-        const isSubscribed = subscribedMatchIds.has(event.id);
+        const gameTitle =
+          (away.team.shortDisplayName || away.team.name) +
+          " vs " +
+          (home.team.shortDisplayName || home.team.name);
 
-        let headerStatusHtml = "";
+        const isLive = event.status.type.state === "in";
+        const isPost = event.status.type.state === "post";
+
+        let headerStatusHTML = "";
 
         if (isLive) {
-          headerStatusHtml = "<span class='live-tag'>LIVE</span>";
-        } else if (isFinal) {
-          headerStatusHtml =
-            "<span style='text-transform:uppercase;color:#9ca3af'>FINAL</span>";
+          headerStatusHTML = "<span class='live-tag'>LIVE</span>";
+        } else if (isPost) {
+          headerStatusHTML =
+            "<span style='text-transform:uppercase; color:#9ca3af;'>FINAL</span>";
         } else {
-          headerStatusHtml =
+          headerStatusHTML =
             "<span class='countdown-timer' data-game-date='" +
-            escapeHtml(event.date) +
+            event.date +
             "'>" +
-            escapeHtml(getCountdownText(event.date)) +
+            getCountdownText(event.date) +
             "</span>";
         }
 
-        const statusDetail =
-          (status.type && status.type.shortDetail) ||
-          status.displayClock ||
-          "Scheduled";
+        const homeColor = home.team.color ? "#" + home.team.color : "#1d4ed8";
+        const awayColor = away.team.color ? "#" + away.team.color : "#15803d";
 
-        const card = document.createElement("article");
+        const homeRecord =
+          home.records && home.records[0]
+            ? "(" + home.records[0].summary + ")"
+            : "";
+
+        const awayRecord =
+          away.records && away.records[0]
+            ? "(" + away.records[0].summary + ")"
+            : "";
+
+        let statusColHTML = "";
+
+        if (currentSport === "baseball") {
+          const situation = competition.situation || {};
+          const balls = situation.balls || 0;
+          const strikes = situation.strikes || 0;
+          const outs = situation.outs || 0;
+          const onFirst = !!situation.onFirst;
+          const onSecond = !!situation.onSecond;
+          const onThird = !!situation.onThird;
+
+          statusColHTML =
+            "<div class='sb-period-box' style='background:#2563eb;'>" +
+              (event.status.type.shortDetail || "Inning") +
+            "</div>" +
+            "<div class='baseball-diamond'>" +
+              "<div class='base base-second " + (onSecond ? "occupied" : "") + "'></div>" +
+              "<div class='base base-third " + (onThird ? "occupied" : "") + "'></div>" +
+              "<div class='base base-first " + (onFirst ? "occupied" : "") + "'></div>" +
+            "</div>" +
+            "<div class='count-row'>B:" +
+              "<span class='dot " + (balls >= 1 ? "active-ball" : "") + "'></span>" +
+              "<span class='dot " + (balls >= 2 ? "active-ball" : "") + "'></span>" +
+              "<span class='dot " + (balls >= 3 ? "active-ball" : "") + "'></span>" +
+            "</div>" +
+            "<div class='count-row'>S:" +
+              "<span class='dot " + (strikes >= 1 ? "active-strike" : "") + "'></span>" +
+              "<span class='dot " + (strikes >= 2 ? "active-strike" : "") + "'></span>" +
+            "</div>" +
+            "<div class='count-row'>O:" +
+              "<span class='dot " + (outs >= 1 ? "active-out" : "") + "'></span>" +
+              "<span class='dot " + (outs >= 2 ? "active-out" : "") + "'></span>" +
+            "</div>";
+        } else if (currentSport === "football") {
+          const situation = competition.situation || {};
+
+          const downDistance =
+            situation.downText && situation.distance
+              ? situation.downText + " & " + situation.distance
+              : event.status.type.shortDetail || "";
+
+          const yardline = situation.possessionText || "";
+
+          statusColHTML =
+            "<div class='sb-time'>" + (event.status.displayClock || "15:00") + "</div>" +
+            "<div class='sb-period-box'>" +
+              (event.status.period ? event.status.period + "Q" : "1st") +
+            "</div>" +
+            "<div class='sb-detail' style='color:#f59e0b;'>" + downDistance + "</div>" +
+            (yardline
+              ? "<div class='sb-detail' style='font-size:0.65rem;'>" + yardline + "</div>"
+              : "");
+        } else if (currentSport === "mma") {
+          statusColHTML =
+            "<div class='sb-period-box' style='background:#7c3aed;'>" +
+              (event.status.type.shortDetail || "UFC") +
+            "</div>" +
+            "<div class='sb-detail'>" +
+              (event.status.displayClock || "R3") +
+            "</div>";
+        } else {
+          statusColHTML =
+            "<div class='sb-time'>" + (event.status.displayClock || "") + "</div>" +
+            "<div class='sb-period-box'>" +
+              (event.status.type.shortDetail || "LIVE") +
+            "</div>";
+        }
+
+        const matchedStream = streamedPkMatches.find(function (match) {
+          const title = (match.title || "").toLowerCase();
+
+          return (
+            title.includes((home.team.name || "").toLowerCase()) ||
+            title.includes((away.team.name || "").toLowerCase())
+          );
+        });
+
+        const isSubscribed = subscribedMatchIds.has(event.id);
+
+        const card = document.createElement("div");
         card.className = "sb-card";
 
         card.innerHTML =
           "<div class='sb-header'>" +
-            headerStatusHtml +
-            "<span style='font-size:.7rem;color:#6b7280;text-transform:uppercase'>" +
-              escapeHtml(status.type && status.type.state ? status.type.state : "scheduled") +
+            headerStatusHTML +
+            "<span style='font-size:0.7rem;color:#6b7280;text-transform:uppercase;'>" +
+              event.status.type.state +
             "</span>" +
           "</div>" +
 
           "<div class='sb-body'>" +
             "<div class='sb-teams'>" +
 
-              "<div class='sb-team-row'>" +
+              "<div class='sb-team-row' style='background:" + awayColor + ";'>" +
                 "<div class='sb-team-info'>" +
                   (away.team.logo
-                    ? "<img class='sb-team-logo' src='" +
-                      escapeHtml(away.team.logo) +
-                      "' alt='" +
-                      escapeHtml(awayName) +
-                      "' />"
+                    ? "<img class='sb-team-logo' src='" + away.team.logo + "' alt='" + away.team.name + "' />"
                     : "") +
                   "<div class='sb-team-text'>" +
                     "<span class='sb-team-name'>" +
-                      escapeHtml(awayName) +
+                      (away.team.shortDisplayName || away.team.name) +
                     "</span>" +
-                    "<span class='sb-team-record'>" +
-                      escapeHtml(awayRecord) +
-                    "</span>" +
+                    "<span class='sb-team-record'>" + awayRecord + "</span>" +
                   "</div>" +
                 "</div>" +
-                "<span class='sb-team-score'>" +
-                  escapeHtml(awayScore) +
-                "</span>" +
+                "<div class='sb-score-container'>" +
+                  (currentSport === "football" &&
+                  competition.situation &&
+                  competition.situation.possession === away.id
+                    ? "<div class='sb-possession'></div>"
+                    : "") +
+                  "<span class='sb-team-score'>" + awayScore + "</span>" +
+                "</div>" +
               "</div>" +
 
-              "<div class='sb-team-row'>" +
+              "<div class='sb-team-row' style='background:" + homeColor + ";'>" +
                 "<div class='sb-team-info'>" +
                   (home.team.logo
-                    ? "<img class='sb-team-logo' src='" +
-                      escapeHtml(home.team.logo) +
-                      "' alt='" +
-                      escapeHtml(homeName) +
-                      "' />"
+                    ? "<img class='sb-team-logo' src='" + home.team.logo + "' alt='" + home.team.name + "' />"
                     : "") +
                   "<div class='sb-team-text'>" +
                     "<span class='sb-team-name'>" +
-                      escapeHtml(homeName) +
+                      (home.team.shortDisplayName || home.team.name) +
                     "</span>" +
-                    "<span class='sb-team-record'>" +
-                      escapeHtml(homeRecord) +
-                    "</span>" +
+                    "<span class='sb-team-record'>" + homeRecord + "</span>" +
                   "</div>" +
                 "</div>" +
-                "<span class='sb-team-score'>" +
-                  escapeHtml(homeScore) +
-                "</span>" +
+                "<div class='sb-score-container'>" +
+                  (currentSport === "football" &&
+                  competition.situation &&
+                  competition.situation.possession === home.id
+                    ? "<div class='sb-possession'></div>"
+                    : "") +
+                  "<span class='sb-team-score'>" + homeScore + "</span>" +
+                "</div>" +
               "</div>" +
 
             "</div>" +
-
-            "<div class='sb-status-col'>" +
-              "<div class='sb-time'>" +
-                escapeHtml(status.displayClock || "") +
-              "</div>" +
-              "<div class='sb-period-box'>" +
-                escapeHtml(statusDetail) +
-              "</div>" +
-            "</div>" +
+            "<div class='sb-status-col'>" + statusColHTML + "</div>" +
           "</div>" +
 
           "<div class='sb-footer'>" +
@@ -892,31 +1229,39 @@
             "'>" +
               (isSubscribed ? "Alert On" : "Alert Off") +
             "</button>" +
-            "<button class='btn-glass sb-action-btn btn-details'>Details</button>" +
+            "<button class='btn-glass sb-action-btn btn-watch'>" +
+              (matchedStream ? "Watch Stream" : "Details") +
+            "</button>" +
           "</div>";
 
-        const gameTitle = awayName + " vs " + homeName;
+        card.onclick = function () {
+          openModal(event, matchedStream);
+        };
+
         const alertButton = card.querySelector(".btn-alert");
-        const detailsButton = card.querySelector(".btn-details");
+        const watchButton = card.querySelector(".btn-watch");
 
-        card.addEventListener("click", function () {
-          openModal(event);
-        });
-
-        alertButton.addEventListener("click", function (buttonEvent) {
+        alertButton.onclick = function (buttonEvent) {
           toggleGameAlert(buttonEvent, event.id, gameTitle);
-        });
+        };
 
-        detailsButton.addEventListener("click", function (buttonEvent) {
+        watchButton.onclick = function (buttonEvent) {
           buttonEvent.stopPropagation();
-          openModal(event);
-        });
+          openModal(event, matchedStream);
+        };
 
         grid.appendChild(card);
       });
     }
 
-    function openModal(event) {
+    async function openModal(event, matchedStream) {
+      const overlay = document.getElementById("modal-overlay");
+      const player = document.getElementById("stream-player");
+      const statContent = document.getElementById("stat-content");
+      const sourceSelector = document.getElementById("source-selector");
+
+      overlay.classList.add("active");
+
       const competition = event.competitions[0];
 
       const home =
@@ -929,44 +1274,95 @@
           return competitor.homeAway === "away";
         }) || competition.competitors[1] || home;
 
-      const homeName = home.team.displayName || home.team.name;
-      const awayName = away.team.displayName || away.team.name;
+      const homeScore = parseInt(home.score || "0", 10);
+      const awayScore = parseInt(away.score || "0", 10);
 
       document.getElementById("modal-title").innerText =
-        awayName + " vs " + homeName;
+        (away.team.shortDisplayName || away.team.name) +
+        " vs " +
+        (home.team.shortDisplayName || home.team.name);
 
-      document.getElementById("stat-content").innerHTML =
-        "<p>Status: <strong>" +
-          escapeHtml(event.status.type.shortDetail || "Scheduled") +
+      statContent.innerHTML =
+        "<p style='margin-bottom:6px;'>Status: <strong>" +
+          event.status.type.shortDetail +
         "</strong></p>" +
-        "<p>" +
-          escapeHtml(awayName) +
-          ": <strong>" +
-          escapeHtml(away.score || "0") +
-        "</strong></p>" +
-        "<p>" +
-          escapeHtml(homeName) +
-          ": <strong>" +
-          escapeHtml(home.score || "0") +
-        "</strong></p>";
+        "<p style='margin-bottom:6px;'>" +
+          (home.team.displayName || home.team.name) +
+          ": <strong>" + homeScore + "</strong></p>" +
+        "<p style='margin-bottom:6px;'>" +
+          (away.team.displayName || away.team.name) +
+          ": <strong>" + awayScore + "</strong></p>" +
+        (currentSport === "baseball"
+          ? "<p style='margin-bottom:6px;'>Inning: <strong>" +
+            (event.status.period || 1) +
+            "</strong></p>"
+          : "");
 
-      document.getElementById("modal-overlay").classList.add("active");
+      sourceSelector.innerHTML = "";
+
+      if (
+        matchedStream &&
+        matchedStream.sources &&
+        matchedStream.sources.length > 0
+      ) {
+        matchedStream.sources.forEach(function (source, index) {
+          const button = document.createElement("button");
+
+          button.innerText =
+            "Source " +
+            String(source.source || "").toUpperCase() +
+            " (" +
+            (index + 1) +
+            ")";
+
+          button.onclick = function () {
+            loadSourceStream(source.source, source.id);
+          };
+
+          sourceSelector.appendChild(button);
+        });
+
+        loadSourceStream(
+          matchedStream.sources[0].source,
+          matchedStream.sources[0].id
+        );
+      } else {
+        player.src = "about:blank";
+        sourceSelector.innerHTML =
+          "<p style='color:#9ca3af;font-size:0.85rem;'>No video feed active.</p>";
+      }
+    }
+
+    async function loadSourceStream(source, id) {
+      const player = document.getElementById("stream-player");
+
+      try {
+        const response = await fetch(
+          "https://streamed.pk/api/stream/" +
+            encodeURIComponent(source) +
+            "/" +
+            encodeURIComponent(id)
+        );
+
+        const streams = await response.json();
+
+        if (streams && streams.length > 0) {
+          player.src = streams[0].embedUrl;
+        }
+      } catch (error) {
+        console.error("Error loading stream embed:", error);
+      }
     }
 
     function closeModal() {
-      document.getElementById("modal-overlay").classList.remove("active");
+      const overlay = document.getElementById("modal-overlay");
+      const player = document.getElementById("stream-player");
+
+      overlay.classList.remove("active");
+      player.src = "about:blank";
     }
 
-    function onDateChange(newDateString) {
-      if (!newDateString) {
-        return;
-      }
-
-      selectedDate = newDateString;
-      fetchESPNScoreboard();
-    }
-
-    async function switchCategory(sport, league, button) {
+    function switchCategory(sport, league, button) {
       currentSport = sport;
       currentLeague = league;
 
@@ -974,54 +1370,14 @@
         navButton.classList.remove("active");
       });
 
-      button.classList.add("active");
+      if (button) {
+        button.classList.add("active");
+      }
 
       document.getElementById("sport-title").innerText =
         sport.toUpperCase() + " Scores";
 
-      await fetchESPNScoreboard();
-    }
-
-    async function pollScoreboardOnce() {
-      if (scoreboardPollRunning || document.hidden) {
-        return;
-      }
-
-      scoreboardPollRunning = true;
-
-      try {
-        await fetchESPNScoreboard();
-      } finally {
-        scoreboardPollRunning = false;
-      }
-    }
-
-    function startScoreboardPolling() {
-      if (scoreboardPollTimer) {
-        clearInterval(scoreboardPollTimer);
-      }
-
-      scoreboardPollTimer = setInterval(pollScoreboardOnce, 15000);
-    }
-
-    document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) {
-        pollScoreboardOnce();
-      }
-    });
-
-    async function initDashboard() {
-      document.getElementById("date-picker").value = selectedDate;
-
-      try {
-        await registerSportsServiceWorker();
-      } catch (error) {
-        console.warn("Service worker not available:", error);
-      }
-
-      await loadSavedSubscriptions();
-      await fetchESPNScoreboard();
-      startScoreboardPolling();
+      initDashboard();
     }
 
     initDashboard();
