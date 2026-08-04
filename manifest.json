@@ -8,7 +8,7 @@
   "background_color": "#0d1117",
   "icons": [
     {
-      "src": "./sports-icon.svg",
+      "src": "./icon-512.png",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
